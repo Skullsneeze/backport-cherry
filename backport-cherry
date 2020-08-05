@@ -1,33 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-########################
-## Check requirements ##
-########################
-command -v hub >/dev/null 2>&1 || {
-  echo "It looks like the \"hub\" command is not available. We use this to automatically create PR's";
-  echo "Please install the \"hub\" command. For more information, please visit: https://github.com/github/hub";
-  exit 1;
-}
+#
+# Help dialog definition
+#
+helpDialog="
+\033[32m  _                _                     _
+ | |              | |                   | |
+ | |__   __ _  ___| | ___ __   ___  _ __| |_
+ | '_ \ / _\` |/ __| |/ / '_ \ / _ \| '__| __|
+ | |_) | (_| | (__|   <| |_) | (_) | |  | |_
+ |_.__/_\__,_|\___|_|\_\ .__/ \___/|_|   \__|
+      | |              | |
+   ___| |__   ___ _ __ |_|_ _   _
+  / __| '_ \ / _ \ '__| '__| | | |
+ | (__| | | |  __/ |  | |  | |_| |
+  \___|_| |_|\___|_|  |_|   \__, |
+                             __/ |
+                            |___/\033[0m
 
-#################
-## Help dialog ##
-#################
-usage="$(basename "$0") [-h|--help] [-c|--commit] [-t|--tags] [-p|--prefix] [-s|--suffix] [-r|--remote] [-v|--verbose] -- Script to cherry-pick a commit and apply it to several tags. The script will create branches based on the tags.
+\033[3mA script to cherry-pick a commit and apply it to several branches based on tags.\033[0m
 
-Parameters:
-    -h|--help              Shows this help text.
-    -c|--commit            The SHA of the commit to cherry-pick.
-    -t|--tags              A list of tags to apply the cherry-picked commit to.
-    -s|--suffix            The suffix to use for the branches
-    -p|--prefix            The prefix to use for the branches (defaults to \"backport\")
-    -r|--remote            The remote to push the branches to (defaults to \"origin\")
-    -rb|--release-branch   Creates release branches if provided (Naming scheme \"release/[TAG]\")
-    -pr|--pull-request     Automatically create a PR on Github
-    -v|--verbose           Output additional information during execution"
+---------------------------------------------------------------------------------
 
-########################
-## Param verification ##
-########################
+\033[4mUsage\033[0m:
+$(basename "$0") [-h|--help] [-c|--commit abcd1234] [-t|--tags \"v1.0.0 v1.0.1 \"] [-p|--prefix backport] [-s|--suffix fixed-an-issue] [-r|--remote origin] [-rb|--release-branch] [-pr|--pull-request] [-v|--verbose]
+
+\033[4mArguments:\033[0m
+    -h|--help              \033[3mDisplay this help dialog.\033[0m
+    -c|--commit            \033[3mThe SHA of the commit to cherry-pick.\033[0m
+    -t|--tags              \033[3mA list of tags to apply the cherry-picked commit to.\033[0m
+    -s|--suffix            \033[3mThe suffix to use for the branches\033[0m
+    -p|--prefix            \033[3mThe prefix to use for the branches (defaults to 'backport')\033[0m
+    -r|--remote            \033[3mThe remote to push the branches to (defaults to 'origin')\033[0m
+    -rb|--release-branch   \033[3mCreates release branches if provided (Naming scheme 'release/[TAG]')\033[0m
+    -pr|--pull-request     \033[3mAutomatically create a PR to the release branch on Github\033[0m
+                           \033[3mRequires the 'hub' command. More information: https://github.com/github/hub\033[0m
+    -v|--verbose           \033[3mOutput additional information during execution\033[0m"
+
+#
+# Param verification
+#
 declare -a tags
 declare -a prUrlCollection
 
@@ -61,6 +73,15 @@ case $key in
     shift # past argument
     ;;
     -pr|--pull-request)
+    if [ "$createReleaseBranch" -ne 1 ]; then
+      echo "Pull request cannot be created if release branches are not automatically generated.
+Please provide the '-rb' option, or run '$(basename "$0") --help' for more information.";
+    fi
+    command -v hub >/dev/null 2>&1 || {
+      echo "It looks like the \"hub\" command is not available. We use this to automatically create PR's
+Please install the \"hub\" command. For more information, please visit: https://github.com/github/hub";
+      exit 1;
+    }
     createPR=1
     shift # past argument
     ;;
@@ -69,21 +90,21 @@ case $key in
     shift # past argument
     ;;
     -h|--help)
-    echo "$usage"
+    echo -e "$helpDialog"
     exit;
     ;;
     *)    # unknown option
-    echo "$1" is not a valid parameter
+    echo "$1" is not a valid argument
     echo ""
-    echo "$usage"
+    echo -e "$helpDialog"
     exit;
     ;;
 esac
 done
 
-########################
-## Manual param input ##
-########################
+#
+# Manual argument input
+#
 if [ "$commit" == "" ]; then
   read -rp 'Commit to cherry-pick:' commit
   if [ "$commit" == "" ]; then
@@ -127,9 +148,9 @@ fi
 
 echo ""
 
-##################
-## Script logic ##
-##################
+#
+# Script logic
+#
 for tag in "${tags[@]}"
 do
   if [ "$verbose" -eq 1 ]; then
@@ -171,9 +192,9 @@ do
       exit 1;
   fi
 
-  #############################
-  ## Release branch creation ##
-  #############################
+  #
+  # Release branch creation
+  #
   if [ "$createReleaseBranch" -eq 1 ]; then
     releaseBranchName="release/${tag//v}";
 
@@ -197,9 +218,9 @@ do
         exit 1;
     fi
 
-    #################
-    ## PR Creation ##
-    #################
+    #
+    # PR Creation
+    #
     if [ "$createPR" -eq 1 ]; then
       if [ "$verbose" -eq 1 ]; then
         echo Creating PR from branch "$branchName" '>' "$releaseBranchName"
